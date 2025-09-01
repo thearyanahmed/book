@@ -9,15 +9,31 @@ through a system of ownership with a set of rules that the compiler checks. If
 any of the rules are violated, the program won’t compile. None of the features
 of ownership will slow down your program while it’s running.
 
+_Ownership_ হলো কিছু rules যা নির্ধারণ করে যে একটি Rust program কিভাবে memory manage করবে (সেটা) ।
+সব program এর-ই (এটা) manage করতে হয় যে (সেটা) run করার সময় কিভাবে computer'র memory ব্যবহার করবে ।
+কিছু language এ garbage collector আছে যেটা regularly খুজতে থাকে ঐ সব memory'র জন্য যেগুলো আর use করা হচ্ছে না;
+অন্য language এ programmer কে নির্দিষ্ট করে memory allocate আর free করতে হয় । Rust 3rd একটা approach নেয়,
+memory manage হয় একটা ownership system এর মাধ্যমে, যেটাতে compiler কিছু rule check করে । যদি কোনো rule
+violate হয়, সেক্ষেত্রে program টি আর compile হয় না । (তবে) ownership এর কোনো feature ই program টি চলার সময়
+program টিকে slow করবে না ।
+
 Because ownership is a new concept for many programmers, it does take some time
 to get used to. The good news is that the more experienced you become with Rust
 and the rules of the ownership system, the easier you’ll find it to naturally
 develop code that is safe and efficient. Keep at it!
 
+যেহেতু অনেক programmer এর কাছে ownership একটা নতুন concept, সেহেতু এটা আয়ত্তে আনতে কিছুটা সময় (with practice) লাগবে ।
+Good news হলো, যত বেশি experienced হবেন Rust আর এই ownership rules এর সাথে, আপনি naturally এটাকে তত সহজে নিয়ে
+safe and efficient code লিখতে পারবেন । Keep at it.
+
 When you understand ownership, you’ll have a solid foundation for understanding
 the features that make Rust unique. In this chapter, you’ll learn ownership by
 working through some examples that focus on a very common data structure:
 strings.
+
+যখন আপনি Rust এর ownership বুঝবেন, তখন আপনার একটা solid foundation তৈরি হবে এটার জন্য যে feature টি Rust কে এত unique করে ।
+এই chapter এ ownership নিয়ে শিখবেন এমন কিছু example নিয়ে কাজ করে, যেটা focus করে একটা
+খুবি common data structure : string নিয়ে ।
 
 > ### The Stack and the Heap
 >
@@ -27,6 +43,12 @@ strings.
 > you have to make certain decisions. Parts of ownership will be described in
 > relation to the stack and the heap later in this chapter, so here is a brief
 > explanation in preparation.
+>
+> অনেক programming language এ আপনাকে stack আর heap নিয়ে তেমন ভাবতে হয় না।
+> কিন্তু Rust এর মতো systems programming language এ কোনো value stack এ আছে
+> নাকি heap এ আছে—এটা language এর behaviour এ effect ফেলে, আর তাই কিছু decision
+> আপনাকে নিতে হয়। Ownership এর কিছু অংশ stack আর heap এর সাথে সম্পর্কিত, তাই আগে
+> একটা ছোট্ট overview দেওয়া হলো।
 >
 > Both the stack and the heap are parts of memory available to your code to use
 > at runtime, but they are structured in different ways. The stack stores
@@ -40,6 +62,14 @@ strings.
 > size at compile time or a size that might change must be stored on the heap
 > instead.
 >
+> Stack আর heap দুটোই হলো memory এর অংশ, যা runtime এ আপনার code use করতে পারে ।
+> কিন্তু এদের structure আলাদা। Stack data store করে যেভাবে আসে, আর remove করে উল্টা
+> ক্রমে (in reverse order) । এটাকে বলে last in, first out (LIFO)। ধরুন প্লেটের (খাবার plate)
+> stack: নতুন প্লেট সবসময় উপরে রাখা হয়, আর দরকার হলে উপরেরটা নেওয়া হয়। মাঝখান থেকে প্লেট বের করা
+> যায় না। Stack এ data add করাকে বলে push, আর remove করাকে বলে pop। তবে শর্ত হলো: stack এ
+> যে ডাটা থাকবে তার size আগে থেকেই জানা থাকতে হবে। যদি size compile time এ অজানা হয় বা পরিবর্তন
+> হতে পারে, তখন সেটা heap এ রাখতে হবে।
+
 > The heap is less organized: when you put data on the heap, you request a
 > certain amount of space. The memory allocator finds an empty spot in the heap
 > that is big enough, marks it as being in use, and returns a _pointer_, which
@@ -53,15 +83,44 @@ strings.
 > someone in your group comes late, they can ask where you’ve been seated to
 > find you.
 >
+
+> Heap তুলনামূলকভাবে কম organized । Heap এ data রাখতে হলে আগে আপনাকে একটা space চাইতে হয় ।
+> Memory allocator heap এ ফাঁকা জায়গা খুঁজে বের করে, সেটা reserve করে দেয়, আর আপনাকে একটা
+> pointer দেয়—মানে ঐ জায়গার address। এই process কে বলে heap allocation বা সংক্ষেপে allocation ।
+> Stack এ push/pop allocation ধরা হয় না। যেহেতু pointer এর size fixed, pointer stack এ রাখা যায়,
+> কিন্তু আসল data পেতে হলে pointer follow করতে হয়। একে ধরুন restaurant analogy দিয়ে: রেস্টুরেন্টে ঢুকে
+> আপনি বলেন কয়জন আসছেন, host ফাঁকা টেবিল খুঁজে বের করে আপনাকে নিয়ে যায়। কেউ দেরিতে এলে, সে host
+> এর কাছে জেনে নিতে পারে আপনি কোথায় বসেছেন।
+
+
+
+
 > Pushing to the stack is faster than allocating on the heap because the
 > allocator never has to search for a place to store new data; that location is
 > always at the top of the stack. Comparatively, allocating space on the heap
 > requires more work because the allocator must first find a big enough space
 > to hold the data and then perform bookkeeping to prepare for the next
 > allocation.
+
+
+Stack এ push করা heap allocation এর চেয়ে অনেক faster, কারণ allocator কে জায়গা খুঁজতে
+হয় না—stack সবসময় উপরের জায়গায় কাজ করে। কিন্তু heap এ জায়গা খুঁজে বের করা, bookkeeping করা
+ইত্যাদি সময় নেয়।
+
+Heap এর data access করাও সাধারণত stack এর চেয়ে slow, কারণ pointer follow করতে হয়।
+Processor কম memory jump করলে দ্রুত কাজ করতে পারে। উদাহরণস্বরূপ, server যদি এক টেবিলের
+order আগে শেষ করে তারপর পরের টেবিলে যায়, সেটা efficient। কিন্তু বারবার টেবিল A আর B তে
+লাফাতে থাকলে সময় বেশি লাগবে। Processor ও তেমনি stack এর কাছাকাছি data নিয়ে কাজ করতে পারলেই দ্রুত হয়, heap এর দূরের data access করলে ধীর হয়।
+
+Code যখন কোনো function call করে, তখন function এর parameter (heap data এর pointer সহ) আর local variable stack এ push হয়। Function শেষ হলে এগুলো stack থেকে pop হয়ে যায়।
+
+Heap এর data কে কে use করছে, duplicate data minimize করা, আর unused data cleanup করা—এই সব সমস্যার সমাধান করে ownership। Ownership বুঝে গেলে আপনাকে stack আর heap নিয়ে আলাদা করে ভাবতে হবে না। তবে এটা জানলে সহজ হয় যে ownership এর মূল কাজ আসলে heap data manage করা।
+
+
 >
 > Accessing data in the heap is generally slower than accessing data on the
 > stack because you have to follow a pointer to get there. Contemporary
++---- change from here
 > processors are faster if they jump around less in memory. Continuing the
 > analogy, consider a server at a restaurant taking orders from many tables.
 > It’s most efficient to get all the orders at one table before moving on to
