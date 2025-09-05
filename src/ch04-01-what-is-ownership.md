@@ -37,13 +37,6 @@ strings.
 
 > ### The Stack and the Heap
 >
-> Many programming languages don’t require you to think about the stack and the
-> heap very often. But in a systems programming language like Rust, whether a
-> value is on the stack or the heap affects how the language behaves and why
-> you have to make certain decisions. Parts of ownership will be described in
-> relation to the stack and the heap later in this chapter, so here is a brief
-> explanation in preparation.
->
 > অনেক programming language এ আপনাকে stack আর heap নিয়ে তেমন ভাবতে হয় না।
 > কিন্তু Rust এর মতো systems programming language এ কোনো value stack এ আছে
 > নাকি heap এ আছে—এটা language এর behaviour এ effect ফেলে, আর তাই কিছু decision
